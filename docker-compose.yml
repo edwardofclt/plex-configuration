@@ -1,0 +1,259 @@
+version: '3'
+
+services:
+  trailers:
+    build:
+      context: /var/lib/plex/get-trailers
+      dockerfile: /var/lib/plex/get-trailers/Dockerfile
+    volumes:
+      - /var/lib/plex/media/trailers:/trailers
+    environment:
+      DOWNLOAD_LOCATION: /trailers
+      RADARR_URL: http://gluetun:7878
+      RADARR_KEY: ${RADARR_API_KEY} # DEFINE THIS
+      SLEEP_TIME: 1440s
+
+  traefik:
+    image: traefik
+    container_name: traefik
+    volumes:
+      - /var/lib/plex/traefik:/etc/traefik
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/traefik/letsencrypt/acme.json:/acme.json
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik.tls.certresolver'
+      - 'traefik.http.routers.traefik.rule=Host(`traefik.example.com`)'
+      - 'traefik.http.routers.traefik.entrypoints=https'
+      - 'traefik.http.routers.traefik.tls.certresolver=le'
+      - 'traefik.http.routers.traefik.service=api@internal'
+      - 'traefik.http.routers.traefik.tls=true'
+      - 'traefik.http.routers.traefik.tls.options=default'
+      - 'traefik.http.routers.traefik.middlewares=authelia@docker'
+      - 'traefik.http.services.traefik.loadbalancer.server.port=8080'
+    ports:
+      - 80:80
+      - 443:443
+    command:
+      - '--api'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedByDefault=false'
+      - '--certificatesResolvers.le.acme.email=email@example.com'
+      - '--certificatesResolvers.le.acme.storage=acme.json'
+      - '--certificatesResolvers.le.acme.tlsChallenge=true'
+      - '--certificatesResolvers.le.acme.httpChallenge=true'
+      - '--certificatesResolvers.le.acme.httpChallenge.entryPoint=http'
+      - '--entrypoints.http=true'
+      - '--entrypoints.http.address=:80'
+      - '--entrypoints.http.http.redirections.entrypoint.to=https'
+      - '--entrypoints.http.http.redirections.entrypoint.scheme=https'
+      - '--entrypoints.https=true'
+      - '--entrypoints.https.address=:443'
+      - '--log=true'
+      - '--log.level=DEBUG'
+
+  openldap:
+    image: osixia/openldap:latest
+    environment:
+      LDAP_LOG_LEVEL: "256"
+      LDAP_ORGANISATION: "Example Inc."
+      LDAP_DOMAIN: "example.com"
+      LDAP_BASE_DN: ""
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_CONFIG_PASSWORD: "config"
+      LDAP_READONLY_USER: "false"
+      LDAP_READONLY_USER_USERNAME: "readonly"
+      LDAP_READONLY_USER_PASSWORD: "readonly"
+      LDAP_RFC2307BIS_SCHEMA: "false"
+      LDAP_BACKEND: "mdb"
+      LDAP_TLS: "true"
+      LDAP_TLS_CRT_FILENAME: "ldap.crt"
+      LDAP_TLS_KEY_FILENAME: "ldap.key"
+      LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
+      LDAP_TLS_ENFORCE: "false"
+      LDAP_TLS_CIPHER_SUITE: "SECURE256:-VERS-SSL3.0"
+      LDAP_TLS_PROTOCOL_MIN: "3.1"
+      LDAP_TLS_VERIFY_CLIENT: "demand"
+      LDAP_REPLICATION: "false"
+      KEEP_EXISTING_CONFIG: "false"
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+      LDAP_SSL_HELPER_PREFIX: "ldap"
+    tty: true
+    stdin_open: true
+    volumes:
+      - /var/lib/plex/media/ldap/config:/var/lib/ldap
+      - /var/lib/plex/media/ldap/slap:/etc/ldap/slapd.d
+      - /container/service/slapd/assets/certs/
+    ports:
+      - "389:389"
+      - "636:636"
+    domainname: "example.com" # important: same as hostname
+    hostname: "example.com"
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    container_name: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "8080:80"
+    depends_on:
+      - openldap
+
+  auth:
+    image: authelia/authelia
+    ports:
+      - 9091:9091
+    restart: unless-stopped
+    volumes:
+      - /var/lib/plex/auth/config:/config
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.authelia.rule=Host(`authelia.example.com`)'
+      - 'traefik.http.routers.authelia.entrypoints=https'
+      - 'traefik.http.routers.authelia.tls=true'
+      - 'traefik.http.routers.authelia.tls.options=default'
+      - 'traefik.http.routers.authelia.tls.certresolver=le'
+      - 'traefik.http.middlewares.authelia.forwardauth.address=http://auth:9091/api/verify?rd=https://authelia.example.com' # yamllint disable-line rule:line-length
+      - 'traefik.http.middlewares.authelia.forwardauth.trustForwardHeader=true'
+      - 'traefik.http.middlewares.authelia.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Name,Remote-Email' # yamllint disable-line rule:line-length
+
+  gluetun:
+    image: qmcgaw/gluetun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8989:8989 # Remote Control VPN
+      - 7878:7878 # Tinyproxy
+      - 6789:6789
+    environment:
+      - VPNSP=private internet access
+      - USER=${GLUETUN_USERNAME} # DEFINE THIS
+      - PASSWORD=${GLUETUN_PASSWORD} # DEFINE THIS
+      - TZ=America/New_York
+      - UID=0
+      - GID=0
+      - REGION=Netherlands
+      - FIREWALL_OUTBOUND_SUBNETS=${NETWORK_CIDR} # think something like 192.168.0.1/24 - DEFINE THIS
+      - HTTPPROXY=on
+    dns:
+      - 209.222.18.222 # Default to PIA DNS servers
+      - 209.222.18.218
+    restart: always
+
+  plex:
+    image: lscr.io/linuxserver/plex
+    restart: unless-stopped
+    environment:
+      - TZ=America/New_York
+      - PUID=0
+      - PGID=0
+    hostname: plex.example.com
+    ports:
+      - 192.168.1.128:32400:32400/tcp
+      - 3005:3005/tcp
+      - 8324:8324/tcp
+      - 32469:32469/tcp
+      - 1900:1900/udp
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+    volumes:
+      - /var/lib/plex/media/config:/config
+      - /var/lib/plex/media/movies:/movies
+      - /var/lib/plex/media/movies:/tv
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.plex.tls.certresolver'
+      - 'traefik.http.routers.plex.rule=Host(`plex.example.com`)'
+      - 'traefik.http.routers.plex.entrypoints=https'
+      - 'traefik.http.routers.plex.tls.certresolver=le'
+      - 'traefik.http.routers.plex.tls=true'
+      - 'traefik.http.routers.plex.tls.options=default'
+      - 'traefik.http.services.plex.loadbalancer.server.port=32400'
+
+  nzbget:
+    image: lscr.io/linuxserver/nzbget
+    restart: unless-stopped
+    environment:
+      - PUID=0
+      - PGID=0
+    depends_on:
+      - gluetun
+    # ports:
+    #   - 6789:6789
+    network_mode: service:gluetun
+    volumes:
+      - /var/lib/plex/media/downloads:/downloads
+      - /var/lib/plex/media/nzbget:/config
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.nzbget.tls.certresolver'
+      - 'traefik.http.routers.nzbget.rule=Host(`downloader.example.com`)'
+      - 'traefik.http.routers.nzbget.entrypoints=https'
+      - 'traefik.http.routers.nzbget.tls.certresolver=le'
+      - 'traefik.http.routers.nzbget.tls=true'
+      - 'traefik.http.routers.nzbget.tls.options=default'
+      - 'traefik.http.routers.nzbget.middlewares=authelia@docker'
+      - 'traefik.http.services.nzbget.loadbalancer.server.port=6789'
+
+  radarr:
+    image: lscr.io/linuxserver/radarr
+    restart: unless-stopped
+    network_mode: service:gluetun
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=0
+      - PGID=0
+    # ports:
+    #   - 7878:7878
+    volumes:
+      - /var/lib/plex/media/movies:/movies
+      - /var/lib/plex/media/tv:/tv
+      - /var/lib/plex/media/downloads:/downloads
+      - /var/lib/plex/media/radarr:/config
+      - /downloads/completed/Movies:/downloads/completed/Movies
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.radarr.tls.certresolver'
+      - 'traefik.http.routers.radarr.rule=Host(`movies.example.com`)'
+      - 'traefik.http.routers.radarr.entrypoints=https'
+      - 'traefik.http.routers.radarr.tls.certresolver=le'
+      - 'traefik.http.routers.radarr.tls=true'
+      - 'traefik.http.routers.radarr.tls.options=default'
+      - 'traefik.http.routers.radarr.middlewares=authelia@docker'
+      - 'traefik.http.services.radarr.loadbalancer.server.port=7878'
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr
+    restart: unless-stopped
+    network_mode: service:gluetun
+    depends_on:
+      - gluetun
+    # ports:
+    #   - 8989:8989
+    environment:
+      - PUID=0
+      - PGID=0
+    volumes:
+      - /var/lib/plex/media/tv:/tv
+      - /var/lib/plex/media/movies:/movies
+      - /var/lib/plex/media/downloads:/downloads
+      - /var/lib/plex/media/sonarr:/config
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.sonarr.tls.certresolver'
+      - 'traefik.http.routers.sonarr.rule=Host(`tv.example.com`)'
+      - 'traefik.http.routers.sonarr.entrypoints=https'
+      - 'traefik.http.routers.sonarr.tls.certresolver=le'
+      - 'traefik.http.routers.sonarr.tls=true'
+      - 'traefik.http.routers.sonarr.tls.options=default'
+      - 'traefik.http.routers.sonarr.middlewares=authelia@docker'
+      - 'traefik.http.services.sonarr.loadbalancer.server.port=8989'
+
+# networks:
+#   public:
+#     external: true
