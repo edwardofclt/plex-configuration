@@ -203,7 +203,6 @@ services:
       - /var/lib/plex/media/tv:/tv
       - /var/lib/plex/media/downloads:/downloads
       - /var/lib/plex/media/radarr:/config
-      - /var/lib/plex/media/downloads:/downloads
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.radarr.tls.certresolver'
