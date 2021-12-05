@@ -1,18 +1,6 @@
 version: '3'
 
 services:
-  trailers:
-    build:
-      context: /var/lib/plex/get-trailers
-      dockerfile: /var/lib/plex/get-trailers/Dockerfile
-    volumes:
-      - /var/lib/plex/media/trailers:/trailers
-    environment:
-      DOWNLOAD_LOCATION: /trailers
-      RADARR_URL: http://gluetun:7878
-      RADARR_KEY: ${RADARR_API_KEY} # DEFINE THIS
-      SLEEP_TIME: 1440s
-
   traefik:
     image: traefik
     container_name: traefik
@@ -163,7 +151,7 @@ services:
     volumes:
       - /var/lib/plex/media/config:/config
       - /var/lib/plex/media/movies:/movies
-      - /var/lib/plex/media/movies:/tv
+      - /var/lib/plex/media/tv:/tv
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.plex.tls.certresolver'
@@ -215,7 +203,7 @@ services:
       - /var/lib/plex/media/tv:/tv
       - /var/lib/plex/media/downloads:/downloads
       - /var/lib/plex/media/radarr:/config
-      - /downloads/completed/Movies:/downloads/completed/Movies
+      - /var/lib/plex/media/downloads:/downloads
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.radarr.tls.certresolver'
@@ -254,6 +242,3 @@ services:
       - 'traefik.http.routers.sonarr.middlewares=authelia@docker'
       - 'traefik.http.services.sonarr.loadbalancer.server.port=8989'
 
-# networks:
-#   public:
-#     external: true
