@@ -1,0 +1,246 @@
+version: '3'
+
+services:
+  pihole:
+    image: pihole/pihole:latest
+    networks:
+      - default
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "8080:80/tcp"
+    environment:
+      TZ: 'America/New_York'
+    volumes:
+      - './pihole/etc-pihole:/etc/pihole'
+      - './pihole/etc-dnsmasq.d:/etc/dnsmasq.d'
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+
+  traefik:
+    depends_on: [ auth ]
+    image: traefik
+    networks:
+      - traefik
+      - default
+    container_name: traefik
+    restart: always
+    volumes:
+      - /var/lib/plex/traefik:/etc/traefik
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/plex/traefik/letsencrypt/acme.json:/acme.json
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik.tls.certresolver'
+      - 'traefik.http.routers.traefik.rule=Host(`traefik.edwardofclt.com`)'
+      - 'traefik.http.routers.traefik.entrypoints=https'
+      - 'traefik.http.routers.traefik.tls.certresolver=le'
+      - 'traefik.http.routers.traefik.service=api@internal'
+      - 'traefik.http.routers.traefik.tls=true'
+      - 'traefik.http.routers.traefik.tls.options=default'
+      - 'traefik.http.routers.traefik.middlewares=authelia@docker'
+      - 'traefik.http.services.traefik.loadbalancer.server.port=8080'
+    ports:
+      - 80:80
+      - 443:443
+    command:
+      - '--api'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedByDefault=false'
+      - '--certificatesResolvers.le.acme.email=abeh78@gmail.com'
+      - '--certificatesResolvers.le.acme.storage=/acme.json'
+      - '--certificatesResolvers.le.acme.tlsChallenge=true'
+      - '--certificatesResolvers.le.acme.httpChallenge=true'
+      - '--pilot.token=86ad26b4-bedb-4e42-b522-fd9f03e5747d'
+      - '--certificatesResolvers.le.acme.httpChallenge.entryPoint=http'
+      - '--entrypoints.http=true'
+      - '--entrypoints.http.address=:80'
+      - '--entrypoints.http.http.redirections.entrypoint.to=https'
+      - '--entrypoints.http.http.redirections.entrypoint.scheme=https'
+      - '--entrypoints.https=true'
+      - '--entrypoints.https.address=:443'
+      - '--log=true'
+      - '--log.level=ERROR'
+
+  openldap:
+    image: osixia/openldap:latest
+    restart: always
+    ports:
+      - 389:389
+    environment:
+      LDAP_LOG_LEVEL: "256"
+      LDAP_ORGANISATION: "Example Inc."
+      LDAP_DOMAIN: "edwardofclt.com"
+      LDAP_BASE_DN: ""
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_CONFIG_PASSWORD: "config"
+      LDAP_READONLY_USER: "false"
+      LDAP_READONLY_USER_USERNAME: "readonly"
+      LDAP_READONLY_USER_PASSWORD: "readonly"
+      LDAP_RFC2307BIS_SCHEMA: "false"
+      LDAP_BACKEND: "mdb"
+      LDAP_REPLICATION: "false"
+      KEEP_EXISTING_CONFIG: "false"
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+      LDAP_SSL_HELPER_PREFIX: "ldap"
+    tty: true
+    stdin_open: true
+    volumes:
+      - /var/lib/plex/media/ldap/config:/var/lib/ldap
+      - /var/lib/plex/media/ldap/slap:/etc/ldap/slapd.d
+      - /container/service/slapd/assets/certs/
+
+  phpldapadmin:
+    depends_on: [ auth ]
+    image: osixia/phpldapadmin:latest
+    restart: always
+    container_name: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+
+  auth:
+    depends_on: [ openldap ]
+    image: authelia/authelia:4.30.1
+    networks:
+      - traefik
+      - default
+    ports:
+      - 9091:9091
+    restart: always
+    volumes:
+      - /var/lib/plex/auth/config:/config
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.authelia.rule=Host(`authelia.edwardofclt.com`)'
+      - 'traefik.http.routers.authelia.entrypoints=https'
+      - 'traefik.http.routers.authelia.tls=true'
+      - 'traefik.http.routers.authelia.tls.options=default'
+      - 'traefik.http.routers.authelia.tls.certresolver=le'
+      - 'traefik.http.middlewares.authelia.forwardauth.address=http://auth:9091/api/verify?rd=https://authelia.edwardofclt.com' # yamllint disable-line rule:line-length
+      - 'traefik.http.middlewares.authelia-basic.forwardauth.address=http://auth:9091/api/verify?auth=basic' # yamllint disable-line rule:line-length
+      - 'traefik.http.middlewares.authelia.forwardauth.trustForwardHeader=true'
+      - 'traefik.http.middlewares.authelia.forwardauth.authResponseHeaders=Remote-User,Remote-Groups,Remote-Name,Remote-Email' # yamllint disable-line rule:line-length
+
+  plex:
+    image: linuxserver/plex
+    networks:
+      - traefik
+      - default
+    restart: always
+    environment:
+      - TZ=America/New_York
+      - PUID=0
+      - PGID=0
+    hostname: plex.edwardofclt.com
+    ports:
+      - 32400:32400/tcp
+      - 3005:3005/tcp
+      - 8324:8324/tcp
+      - 32469:32469/tcp
+      - 1900:1900/udp
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+    volumes:
+      - /var/lib/plex/media/config:/config
+      - /var/lib/plex/media/movies:/movies
+      - /var/lib/plex/media/tv:/tv
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.plex.tls.certresolver'
+      - 'traefik.http.routers.plex.rule=Host(`plex.edwardofclt.com`)'
+      - 'traefik.http.routers.plex.entrypoints=https'
+      - 'traefik.http.routers.plex.tls.certresolver=le'
+      - 'traefik.http.routers.plex.tls=true'
+      - 'traefik.http.routers.plex.tls.options=default'
+      - 'traefik.http.services.plex.loadbalancer.server.port=32400'
+
+  sabnzb:
+    depends_on: [ auth ]
+    image: linuxserver/sabnzbd
+    restart: unless-stopped
+    environment:
+      - PUID=0
+      - PGID=0
+    #    network_mode: service:gluetun
+    volumes:
+      - /var/lib/plex/media/downloads:/downloads
+      - /var/lib/plex/media/sabnzb:/config
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.sab.tls.certresolver'
+      - 'traefik.http.routers.sab.rule=Host(`sab.edwardofclt.com`)'
+      - 'traefik.http.routers.sab.entrypoints=https'
+      - 'traefik.http.routers.sab.tls.certresolver=le'
+      - 'traefik.http.routers.sab.tls=true'
+      - 'traefik.http.routers.sab.tls.options=default'
+      - 'traefik.http.routers.sab.middlewares=authelia@docker'
+      - 'traefik.http.services.sab.loadbalancer.server.port=8080'
+
+  radarr:
+    depends_on: [ auth ]
+    image: linuxserver/radarr
+    restart: unless-stopped
+    #   network_mode: service:gluetun
+    environment:
+      - PUID=0
+      - PGID=0
+    ports:
+      - 7878:7878
+    volumes:
+      - /var/lib/plex/media/movies:/movies
+      - /var/lib/plex/media/tv:/tv
+      - /var/lib/plex/media/downloads:/downloads
+      - /var/lib/plex/media/radarr:/config
+
+  sonarr:
+    depends_on: [ auth ]
+    image: linuxserver/sonarr
+    restart: unless-stopped
+    #   network_mode: service:gluetun
+    ports:
+      - 8989:8989
+    environment:
+      - PUID=0
+      - PGID=0
+    networks:
+      - default
+    volumes:
+      - /var/lib/plex/media/tv:/tv
+      - /var/lib/plex/media/movies:/movies
+      - /var/lib/plex/media/downloads:/downloads
+      - /var/lib/plex/media/sonarr:/config
+
+  overseerr:
+    depends_on: [ plex, radarr, sonarr ]
+    image: sctx/overseerr:latest
+    networks:
+      - traefik
+      - default
+    container_name: overseerr
+    environment:
+      - LOG_LEVEL=error
+      - TZ=America/New_York
+      - PORT=5055
+    volumes:
+      - /var/lib/plex/overseer:/app/config
+    restart: unless-stopped
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.req.tls.certresolver'
+      - 'traefik.http.routers.req.rule=Host(`req.edwardofclt.com`)'
+      - 'traefik.http.routers.req.entrypoints=https'
+      - 'traefik.http.routers.req.tls.certresolver=le'
+      - 'traefik.http.routers.req.tls=true'
+      - 'traefik.http.routers.req.tls.options=default'
+      - 'traefik.http.services.req.loadbalancer.server.port=5055'
+
+networks:
+  traefik:
+    external: true
+  default:
+
