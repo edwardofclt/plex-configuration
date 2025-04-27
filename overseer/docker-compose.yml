@@ -1,0 +1,17 @@
+services:
+  overseerr:
+    image: sctx/overseerr:latest
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - ./config:/app/config
+    restart: unless-stopped
+    labels:
+      caddy: req.edwardofclt.com
+      caddy.reverse_proxy: "{{upstreams 5055}}"
+    networks:
+      - caddy
+
+networks:
+  caddy:
+    external: true

@@ -1,0 +1,21 @@
+services:
+  server:
+    image: lscr.io/linuxserver/radarr:latest
+    networks:
+      - caddy
+    volumes:
+    - ./config:/config
+    - ../media/movies:/movies
+    - ../media/downloads:/downloads
+    restart: unless-stopped
+    environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ=America/New_York
+    labels:
+      caddy: movies.edwardofclt.com
+      caddy.reverse_proxy: "{{upstreams 7878}}"
+
+networks:
+  caddy:
+    external: true
