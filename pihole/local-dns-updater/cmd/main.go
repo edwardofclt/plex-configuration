@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -23,6 +24,10 @@ func init() {
 	err := godotenv.Load(".env")
 	if err != nil {
 		logrus.Warnf(".env file not found, using provided environment variables")
+	}
+
+	if os.Getenv("PIHOLE_HOST") == "" || os.Getenv("PASSWORD") == "" || os.Getenv("TARGET_IP") == "" {
+		log.Fatalf("PIHOLE_HOST, PASSWORD and TARGET_IP environment variables must be set")
 	}
 
 	piHoleClient, err = pihole.New(pihole.Config{
@@ -63,6 +68,40 @@ func main() {
 				if err != nil {
 					logrus.Errorf("Error creating DNS entry for %s: %s", container, err.Error())
 				}
+			}
+		}
+
+		if os.Getenv("MONITOR_DOMAINS") != "" {
+			monitoredDomains := strings.Split(os.Getenv("MONITOR_DOMAINS"), ",")
+		ENTRIES:
+			for _, entry := range localDnsEntries {
+
+				watchedDomain := false
+				for _, domain := range monitoredDomains {
+					if strings.HasSuffix(entry, domain) {
+						watchedDomain = true
+						break
+					}
+				}
+				if !watchedDomain {
+					continue ENTRIES
+				}
+
+				found := false
+			CONTAINERS:
+				for _, container := range runningContainers {
+					if entry == container {
+						found = true
+						break CONTAINERS
+					}
+				}
+				if !found {
+					err := piHoleClient.LocalDNS.Delete(ctx, entry)
+					if err != nil {
+						logrus.Errorf("Error deleting DNS entry for %s: %s", entry, err.Error())
+					}
+				}
+
 			}
 		}
 
