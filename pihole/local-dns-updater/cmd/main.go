@@ -20,8 +20,11 @@ var piHoleClient *pihole.Client
 const sleepTime = 5 * time.Second
 
 func init() {
-	godotenv.Load(".env")
-	var err error
+	err := godotenv.Load(".env")
+	if err != nil {
+		logrus.Warnf(".env file not found, using provided environment variables")
+	}
+
 	piHoleClient, err = pihole.New(pihole.Config{
 		BaseURL:  fmt.Sprintf("https://%s", os.Getenv("PIHOLE_HOST")),
 		Password: os.Getenv("PASSWORD"),
