@@ -11,12 +11,12 @@ This basically scrapes your Docker containers for any Caddy label-based configur
 
 1. Update the values:
 
-    | Key | Required | Description |
-    | --- | -------- | ----------- | 
-    | PASSWORD | Yes | Generate this value in pihole |
-    | PIHOLE_HOST | Yes | Hostname your pihole is running on |
-    | TARGET_IP | Yes | What is the IP of the server your container is running on? |
-    | MONITOR_DOMAINS | No | If this value is set, any values for the domain you list will be cleaned up if not found within your caddy configurations. |
+    | Key             | Required | Description                                                                                                                                                 |
+    | --------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | PASSWORD        | Yes      | Generate this value in pihole                                                                                                                               |
+    | PIHOLE_HOST     | Yes      | Hostname your pihole is running on                                                                                                                          |
+    | TARGET_IP       | Yes      | What is the IP of the server your container is running on?                                                                                                  |
+    | MONITOR_DOMAINS | No       | Comma-delimited list of domains. If this value is set, any values for the domain you list will be cleaned up if not found within your caddy configurations. |
 
 1. Run the stack
 
