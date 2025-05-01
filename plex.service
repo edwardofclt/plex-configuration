@@ -1,0 +1,16 @@
+[Unit]
+Description=Start all Docker Compose stacks in /plex and subdirectories
+After=docker.service network.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/plex
+ExecStart=/plex/start-plex-docker.sh
+ExecStop=/plex/stop-plex-docker.sh
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+

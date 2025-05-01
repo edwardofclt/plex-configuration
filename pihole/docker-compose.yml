@@ -31,6 +31,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
   updater:
     container_name: pihole-updater
     depends_on:

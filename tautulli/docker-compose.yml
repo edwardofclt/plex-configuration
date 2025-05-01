@@ -1,0 +1,20 @@
+services:
+  tautulli:
+    image: ghcr.io/tautulli/tautulli
+    container_name: tautulli
+    restart: unless-stopped
+    volumes:
+      - ./config:/config
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    labels:
+      caddy: tau.edwardofclt.com
+      caddy.reverse_proxy: "{{upstreams 8181}}"
+    networks:
+      - caddy
+
+networks:
+  caddy:
+    external: true
