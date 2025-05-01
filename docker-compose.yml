@@ -4,26 +4,25 @@ services:
     networks:
       - caddy
     ports:
-    - 32400:32400
-    - 1900:1900/udp
-    - 5353:5353/udp
-    - 8324:8324
-    - 32410:32410/udp
-    - 32412:32412/udp
-    - 32413:32413/udp
-    - 32414:32414/udp
-    - 32469:32469
+      - 32400:32400
+      - 1900:1900/udp
+      - 5353:5353/udp
+      - 8324:8324
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+      - 32469:32469
     volumes:
-    - ./config:/config
-    - ./media/tv:/tv
-    - ./media/movies:/movies
+      - ./config:/config
+      - ./media/tv:/tv
+      - ./media/movies:/movies
     restart: unless-stopped
     environment:
-    - PUID=1000
-    - PGID=1000
-    - TZ=America/New_York
-    - VERSION=docker
-    - PLEX_CLAIM=claim-SccgQ2LcaVVZAzqxb_gh
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - VERSION=docker
     labels:
       caddy: plex.edwardofclt.com
       caddy.reverse_proxy: "{{upstreams 32400}}"
