@@ -1,0 +1,25 @@
+services:
+  mc:
+    image: itzg/minecraft-server:stable
+    environment:
+      EULA: "true"
+      MODE: "creative"
+      ENABLE_COMMAND_BLOCK: "true"
+      ALLOW_NETHER: "true"
+      FORCE_GAMEMODE: "true"
+      TYPE: "PAPER"
+      ENABLE_QUERY: "true"
+      SPIGET_RESOURCES: "82411,19254"
+
+      PLUGINS: |
+        https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
+        https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot
+      # https://ci.viaversion.com/job/ViaVersion/lastSuccessfulBuild/artifact/build/libs/ViaVersion-5.3.3-SNAPSHOT.jar
+      # https://ci.viaversion.com/view/ViaBackwards/job/ViaBackwards/lastSuccessfulBuild/artifact/build/libs/ViaBackwards-5.3.3-SNAPSHOT.jar
+    ports:
+      - "25565:25565"
+      - "19132:19132/udp"
+    volumes:
+      - ./data:/data
+    labels:
+      caddy: mc.edwardofclt.com
