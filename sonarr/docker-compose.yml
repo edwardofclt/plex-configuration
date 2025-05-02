@@ -4,16 +4,16 @@ services:
     networks:
       - caddy
     volumes:
-    - ./config:/config
-    - ../media/tv:/tv
-    - ../media/downloads:/downloads
+      - ./config:/config
+      - ../media/tv:/tv
+      - ../media/downloads:/downloads
     restart: unless-stopped
     environment:
-    - PUID=1000
-    - PGID=1000
-    - TZ=America/New_York
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
     labels:
-      caddy: tv.edwardofclt.com
+      caddy: tv.${DOMAIN}
       caddy.reverse_proxy: "{{upstreams 8989}}"
 
 networks:

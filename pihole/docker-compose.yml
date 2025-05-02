@@ -24,7 +24,7 @@ services:
       - SYS_NICE
     restart: unless-stopped
     labels:
-      caddy: pihole.edwardofclt.com
+      caddy: pihole.${DOMAIN}
       caddy.reverse_proxy: "{{upstreams 80}}"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost/admin" ]

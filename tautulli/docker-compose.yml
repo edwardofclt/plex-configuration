@@ -10,7 +10,7 @@ services:
       - PGID=1000
       - TZ=America/New_York
     labels:
-      caddy: tau.edwardofclt.com
+      caddy: tau.${DOMAIN}
       caddy.reverse_proxy: "{{upstreams 8181}}"
     networks:
       - caddy

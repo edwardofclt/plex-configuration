@@ -7,7 +7,7 @@ services:
       - ./config:/app/config
     restart: unless-stopped
     labels:
-      caddy: req.edwardofclt.com
+      caddy: req.${DOMAIN}
       caddy.reverse_proxy: "{{upstreams 5055}}"
     networks:
       - caddy

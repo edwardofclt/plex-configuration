@@ -7,6 +7,7 @@ Requires=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/plex
+Environment=DOMAIN=edwardofclt.com
 ExecStart=/plex/start-plex-docker.sh
 ExecStop=/plex/stop-plex-docker.sh
 TimeoutStartSec=0

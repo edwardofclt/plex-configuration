@@ -11,9 +11,9 @@ services:
       - ../media/incomplete:/incomplete-downloads
     restart: unless-stopped
     networks:
-    - caddy
+      - caddy
     labels:
-      caddy: nzb.edwardofclt.com
+      caddy: nzb.${DOMAIN}
       caddy.reverse_proxy: "{{upstreams 8080}}"
 
 networks:

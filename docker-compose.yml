@@ -24,7 +24,7 @@ services:
       - TZ=America/New_York
       - VERSION=docker
     labels:
-      caddy: plex.edwardofclt.com
+      caddy: plex.${DOMAIN}
       caddy.reverse_proxy: "{{upstreams 32400}}"
 
 networks:
