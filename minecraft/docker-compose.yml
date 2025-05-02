@@ -10,12 +10,15 @@ services:
       TYPE: "PAPER"
       ENABLE_QUERY: "true"
       SPIGET_RESOURCES: "82411,19254"
-
+      WHITELIST: |
+        GoofballBow6
+        .UnevenLake43399
+        animepsyclon3
       PLUGINS: |
         https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/spigot
         https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/spigot
-      # https://ci.viaversion.com/job/ViaVersion/lastSuccessfulBuild/artifact/build/libs/ViaVersion-5.3.3-SNAPSHOT.jar
-      # https://ci.viaversion.com/view/ViaBackwards/job/ViaBackwards/lastSuccessfulBuild/artifact/build/libs/ViaBackwards-5.3.3-SNAPSHOT.jar
+        https://ci.viaversion.com/job/ViaVersion/lastSuccessfulBuild/artifact/build/libs/ViaVersion-5.3.3-SNAPSHOT.jar
+        https://ci.viaversion.com/view/ViaBackwards/job/ViaBackwards/lastSuccessfulBuild/artifact/build/libs/ViaBackwards-5.3.3-SNAPSHOT.jar
     ports:
       - "25565:25565"
       - "19132:19132/udp"
