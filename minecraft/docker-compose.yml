@@ -24,5 +24,3 @@ services:
       - "19132:19132/udp"
     volumes:
       - ./data:/data
-    labels:
-      caddy: mc.edwardofclt.com
